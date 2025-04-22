@@ -1,0 +1,9 @@
+[package]
+name = "ckip_ws"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pyo3 = { version = "0.24", features=["auto-initialize", "anyhow"] }
+once_cell = "1"
+anyhow = "1.0.98"

@@ -1,2 +1,5 @@
 /target
 /dist
+**/dict_index
+**/target
+**/dist

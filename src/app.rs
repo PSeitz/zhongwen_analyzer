@@ -1,3 +1,4 @@
+use lindera::token;
 use pinyin::ToPinyin;
 use wana_kana::IsJapaneseChar;
 use web_sys::HtmlTextAreaElement;
@@ -18,14 +19,14 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
         <!DOCTYPE html>
         <html lang="en">
             <head>
-                <meta charset="utf-8"/>
-                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <meta charset="utf-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <AutoReload options=options.clone() />
-                <HydrationScripts options/>
-                <MetaTags/>
+                <HydrationScripts options />
+                <MetaTags />
             </head>
             <body>
-                <App/>
+                <App />
             </body>
         </html>
     }
@@ -40,16 +41,16 @@ pub fn App() -> impl IntoView {
     view! {
         // injects a stylesheet into the document <head>
         // id=leptos means cargo-leptos will hot-reload this stylesheet
-        <Stylesheet id="leptos" href="/pkg/leptos-axum-test.css"/>
+        <Stylesheet id="leptos" href="/pkg/leptos-axum-test.css" />
 
         // sets the document title
-        <Title text="Welcome to Leptos"/>
+        <Title text="Zhongwen Analyzer" />
 
         // content for this welcome page
         <Router>
             <main>
                 <Routes fallback=|| "Page not found.".into_view()>
-                    <Route path=StaticSegment("") view=MainComponent/>
+                    <Route path=StaticSegment("") view=MainComponent />
                 </Routes>
             </main>
         </Router>
@@ -58,41 +59,118 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn MainComponent() -> impl IntoView {
-    let submit = ServerAction::<VeryImportantFn>::new();
-    let some_value = RwSignal::new("initial value".to_string());
-    let server_result = RwSignal::new(None::<String>);
+    let submit = ServerAction::<TokenizeTexts>::new();
+    let text_area_value = RwSignal::new(None::<String>);
+    //let mode = RwSignal::new(DisplayMode::PinyinWithTranslation);
 
     view! {
-      <>
-        <ActionForm action=submit>
-          <textarea
-              prop:value=move || some_value.get()
-              on:input:target=move |ev| {
-                  let new_val = ev.target().value();
-                  some_value.set(new_val.clone());
-                  {
-                      spawn_local(async move {
-                          let res = very_important_fn(new_val).await.unwrap();
-                          server_result.set(Some(res));
-                      });
-                  }
-              }
-          />
-        </ActionForm>
-        <p>{move || server_result.get().clone().unwrap_or_default()}</p>
-      </>
+        <div style="display: flex">
+            <div style="flex: 1; border-right: 1px solid #ccc; padding: 10px;">
+                <textarea
+                    style="width: 100%; height: 100%; height: 900px; font-size: 1.5em;"
+                    prop:value=move || text_area_value.get()
+                    on:input:target=move |ev| {
+                        let new_val = ev.target().value();
+                        logging::log!("SET THE VALUE");
+                        text_area_value.set(Some(new_val.clone()));
+                    }
+                />
+            </div>
+            <div style="flex: 1; padding: 10px;">
+                // <button on:click=move |_| {
+                // let current = mode.get();
+                // let new_mode = if current == DisplayMode::PinyinWithTranslation {
+                // DisplayMode::UniqueWordsWithCounts
+                // } else {
+                // DisplayMode::PinyinWithTranslation
+                // };
+                // mode.set(new_mode);
+                // }>{move || {
+                // if mode.get() == DisplayMode::PinyinWithTranslation {
+                // "Show Unique Words with Counts".to_string()
+                // } else {
+                // "Show Pinyin with Translation".to_string()
+                // }
+                // }}</button>
+                <ShowPinyinWithTranslation current_text=text_area_value />
+            </div>
+        </div>
     }
 }
+
+#[component]
+fn ShowPinyinWithTranslation(current_text: RwSignal<Option<String>>) -> impl IntoView {
+    let server_result = Resource::new(
+        move || current_text.get(),
+        move |text| {
+            logging::log!("Fetching New {:?}", text);
+            tokenize_texts(text.unwrap_or("unset".to_string()))
+        },
+    );
+
+    view! {
+            <>
+                    <style>
+                        {r#"
+    .tooltip {
+        display: inline-block;
+        text-align: center;
+        padding-left: 5px;
+        position: relative;
+    }
+    .tooltip .tooltiptext {
+        position: absolute;
+        bottom: calc(100% - 5px);
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: black;
+        color: #fff;
+        padding: 5px;
+        border-radius: 6px;
+        white-space: nowrap;
+        z-index: 1;
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    .tooltip:hover .tooltiptext {
+        visibility: visible;
+        opacity: 1;
+    }
+                        "#}
+                    </style>
+                <Suspense fallback=|| { "Loading tokens..." }>
+                    {move || {
+                        let tokens = server_result.get().unwrap().unwrap();
+                        tokens
+                            .into_iter()
+                            .map(|token| {
+                                view! {
+                                    <div class="tooltip" style="display: inline-block; text-align: center; padding-left: 5px; position: relative;">
+                                        <span style="display: block; font-size: 0.8em; color: gray;">
+                                            {token.pinyin.clone()}
+                                        </span>
+                                        <span>{token.chinese.clone()}</span>
+    <span class="tooltiptext">
+                                            {token.english.clone()}
+                                        </span>
+                                    </div>
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                    }}
+                </Suspense>
+            </>
+        }
+}
+
 #[server]
-async fn very_important_fn(input_text: String) -> Result<String, ServerFnError> {
+async fn tokenize_texts(input_text: String) -> Result<Vec<Token>, ServerFnError> {
     println!("Received input: {}", input_text);
 
     let mut input_text = input_text.clone();
     // Remove whitespace, but keep line breaks
     input_text.retain(|c| c != ' ');
-    //input_element.set_value(&input_text);
-    //let tokenized: Vec<_> = jieba.cut(&input_text, true);
-    //let tokenized: Vec<_> = tokenizer.tokenize(input_text.clone(), &dictionary).unwrap();
     let dictionary = load_dictionary_from_kind(DictionaryKind::CcCedict).unwrap();
     let segmenter = Segmenter::new(
         Mode::Normal,
@@ -121,7 +199,8 @@ async fn very_important_fn(input_text: String) -> Result<String, ServerFnError> 
         })
         .collect();
 
-    Ok(format!("Processed input: {}", input_text))
+    //Ok(format!("Processed input: {}", input_text))
+    Ok(new_tokens)
 }
 
 //#[function_component(App)]
@@ -170,12 +249,20 @@ async fn very_important_fn(input_text: String) -> Result<String, ServerFnError> 
 //tokens: Vec<Token>,
 //}
 
-#[derive(PartialEq, Clone)]
-struct Token {
+#[derive(
+    PartialEq, Clone, leptos::server_fn::serde::Serialize, leptos::server_fn::serde::Deserialize,
+)]
+pub struct Token {
     chinese: String,
     pinyin: String,
     english: String,
     meaning: Option<String>,
+}
+
+#[derive(Clone, PartialEq)]
+enum DisplayMode {
+    PinyinWithTranslation,
+    UniqueWordsWithCounts,
 }
 
 //#[derive(Clone, PartialEq)]

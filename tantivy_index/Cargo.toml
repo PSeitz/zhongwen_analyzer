@@ -1,0 +1,8 @@
+[package]
+name = "tantivy_index"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde_json = "1.0.140"
+tantivy = "0.24.0"

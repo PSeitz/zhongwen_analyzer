@@ -3616,6 +3616,7 @@ dependencies = [
  "lindera",
  "pinyin",
  "serde",
+ "serde_json",
  "tokio",
  "wana_kana",
  "wasm-bindgen",
