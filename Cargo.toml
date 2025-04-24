@@ -19,8 +19,8 @@ serde = { version = "1.0.219", features = ["derive", "rc", "serde_derive"] }
 
 pinyin = "0.10"
 web-sys = { version = "0.3.77", features = ["HtmlSelectElement"] }
-lindera = { version = "0.40.0", features = ["cc-cedict"] }
-ik-rs = "0.7.0"
+#lindera = { version = "0.40.0", features = ["cc-cedict"] }
+#ik-rs = "0.7.0"
 wana_kana = "4.0.0"
 serde_json = "1.0.140"
 

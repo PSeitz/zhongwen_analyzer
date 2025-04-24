@@ -1,13 +1,13 @@
-use lindera::token;
+//use lindera::token;
 use pinyin::ToPinyin;
 use wana_kana::IsJapaneseChar;
-use web_sys::HtmlTextAreaElement;
+//use web_sys::HtmlTextAreaElement;
 
-use lindera::dictionary::{load_dictionary_from_kind, DictionaryKind};
-use lindera::mode::Mode;
-use lindera::segmenter::Segmenter;
+//use lindera::dictionary::{load_dictionary_from_kind, DictionaryKind};
+//use lindera::mode::Mode;
+//use lindera::segmenter::Segmenter;
 
-use leptos::{logging, prelude::*, task::spawn_local};
+use leptos::{logging, prelude::*};
 use leptos_meta::{provide_meta_context, MetaTags, Stylesheet, Title};
 use leptos_router::{
     components::{Route, Router, Routes},
@@ -403,33 +403,33 @@ mod test {
     //);
     //}
 
-    #[test]
-    fn test_lindera() {
-        use lindera::dictionary::{load_dictionary_from_kind, DictionaryKind};
-        use lindera::mode::Mode;
-        use lindera::segmenter::Segmenter;
+    //#[test]
+    //fn test_lindera() {
+    //use lindera::dictionary::{load_dictionary_from_kind, DictionaryKind};
+    //use lindera::mode::Mode;
+    //use lindera::segmenter::Segmenter;
 
-        let dictionary = load_dictionary_from_kind(DictionaryKind::CcCedict).unwrap();
-        let segmenter = Segmenter::new(
-            Mode::Normal,
-            dictionary,
-            None, // Assuming no user dictionary is provided
-        );
-        let tokenizer = lindera::tokenizer::Tokenizer::new(segmenter);
-        let input_text =
-            "在某一年的十二月，我心情不好、想要去別的城市走走，所以我就坐上火車，從台北來到台南";
-        let tokenized = tokenizer
-            .tokenize(input_text)
-            .unwrap()
-            .iter()
-            .map(|token| token.text.to_string())
-            .collect::<Vec<_>>();
-        assert_eq!(
-            tokenized,
-            vec!["都會", "告訴", "爸爸", "在", "校", "發生", "了", "什麼事"]
-        );
-        // check all tokens
-    }
+    //let dictionary = load_dictionary_from_kind(DictionaryKind::CcCedict).unwrap();
+    //let segmenter = Segmenter::new(
+    //Mode::Normal,
+    //dictionary,
+    //None, // Assuming no user dictionary is provided
+    //);
+    //let tokenizer = lindera::tokenizer::Tokenizer::new(segmenter);
+    //let input_text =
+    //"在某一年的十二月，我心情不好、想要去別的城市走走，所以我就坐上火車，從台北來到台南";
+    //let tokenized = tokenizer
+    //.tokenize(input_text)
+    //.unwrap()
+    //.iter()
+    //.map(|token| token.text.to_string())
+    //.collect::<Vec<_>>();
+    //assert_eq!(
+    //tokenized,
+    //vec!["都會", "告訴", "爸爸", "在", "校", "發生", "了", "什麼事"]
+    //);
+    //// check all tokens
+    //}
 
     //#[test]
     //pub fn test_ik() {
