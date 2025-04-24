@@ -109,59 +109,62 @@ fn ShowPinyinWithTranslation(current_text: RwSignal<Option<String>>) -> impl Int
     );
 
     view! {
-            <>
-                    <style>
-                        {r#"
-    .tooltip {
-        display: inline-block;
-        text-align: center;
-        padding-left: 5px;
-        position: relative;
+        <>
+            <style>
+                {r#"
+                .tooltip {
+                display: inline-block;
+                text-align: center;
+                padding-left: 5px;
+                position: relative;
+                }
+                .tooltip .tooltiptext {
+                position: absolute;
+                bottom: calc(100% - 5px);
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: black;
+                color: #fff;
+                padding: 5px;
+                border-radius: 6px;
+                white-space: nowrap;
+                z-index: 1;
+                visibility: hidden;
+                opacity: 0;
+                transition: opacity 0.3s;
+                }
+                .tooltip:hover .tooltiptext {
+                visibility: visible;
+                opacity: 1;
+                }
+                "#}
+            </style>
+            <Suspense fallback=|| {
+                "Loading tokens..."
+            }>
+                {move || {
+                    let tokens = server_result.get().unwrap().unwrap();
+                    tokens
+                        .into_iter()
+                        .map(|token| {
+                            view! {
+                                <div
+                                    class="tooltip"
+                                    style="display: inline-block; text-align: center; padding-left: 5px; position: relative;"
+                                >
+                                    <span style="display: block; font-size: 0.8em; color: gray;">
+                                        {token.pinyin.clone()}
+                                    </span>
+                                    <span>{token.chinese.clone()}</span>
+                                    <span class="tooltiptext">{token.english.clone()}</span>
+                                </div>
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                }}
+            </Suspense>
+        </>
     }
-    .tooltip .tooltiptext {
-        position: absolute;
-        bottom: calc(100% - 5px);
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: black;
-        color: #fff;
-        padding: 5px;
-        border-radius: 6px;
-        white-space: nowrap;
-        z-index: 1;
-        visibility: hidden;
-        opacity: 0;
-        transition: opacity 0.3s;
-    }
-    .tooltip:hover .tooltiptext {
-        visibility: visible;
-        opacity: 1;
-    }
-                        "#}
-                    </style>
-                <Suspense fallback=|| { "Loading tokens..." }>
-                    {move || {
-                        let tokens = server_result.get().unwrap().unwrap();
-                        tokens
-                            .into_iter()
-                            .map(|token| {
-                                view! {
-                                    <div class="tooltip" style="display: inline-block; text-align: center; padding-left: 5px; position: relative;">
-                                        <span style="display: block; font-size: 0.8em; color: gray;">
-                                            {token.pinyin.clone()}
-                                        </span>
-                                        <span>{token.chinese.clone()}</span>
-    <span class="tooltiptext">
-                                            {token.english.clone()}
-                                        </span>
-                                    </div>
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                    }}
-                </Suspense>
-            </>
-        }
 }
 
 #[server]
@@ -171,19 +174,24 @@ async fn tokenize_texts(input_text: String) -> Result<Vec<Token>, ServerFnError>
     let mut input_text = input_text.clone();
     // Remove whitespace, but keep line breaks
     input_text.retain(|c| c != ' ');
-    let dictionary = load_dictionary_from_kind(DictionaryKind::CcCedict).unwrap();
-    let segmenter = Segmenter::new(
-        Mode::Normal,
-        dictionary,
-        None, // Assuming no user dictionary is provided
-    );
-    let tokenizer = lindera::tokenizer::Tokenizer::new(segmenter);
-    let tokenized = tokenizer
-        .tokenize(&input_text)
-        .unwrap()
-        .iter()
-        .map(|token| token.text.to_string())
-        .collect::<Vec<_>>();
+
+    let tokenized = ckip_ws::segment(&input_text).unwrap();
+    println!("Tokenized: {:?}", tokenized);
+
+    //let dictionary = load_dictionary_from_kind(DictionaryKind::CcCedict).unwrap();
+    //let segmenter = Segmenter::new(
+    //Mode::Normal,
+    //dictionary,
+    //None, // Assuming no user dictionary is provided
+    //);
+
+    //let tokenizer = lindera::tokenizer::Tokenizer::new(segmenter);
+    //let tokenized = tokenizer
+    //.tokenize(&input_text)
+    //.unwrap()
+    //.iter()
+    //.map(|token| token.text.to_string())
+    //.collect::<Vec<_>>();
 
     //let tokenized: Vec<_> = input_text.split("").collect();
 
