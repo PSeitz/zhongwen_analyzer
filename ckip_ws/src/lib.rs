@@ -14,7 +14,7 @@ static WS: Lazy<PyObject> = Lazy::new(|| {
 });
 
 /// Segmente einen einzelnen Text in Wörter.
-pub fn segment(text: &str) -> PyResult<Vec<Vec<String>>> {
+pub fn segment(text: &str) -> PyResult<Vec<String>> {
     Python::with_gil(|py| {
         let result: PyObject = WS.call1(py, (PyList::new(py, [text]).unwrap(),)).unwrap();
         println!("result: {result:?}");
@@ -25,6 +25,6 @@ pub fn segment(text: &str) -> PyResult<Vec<Vec<String>>> {
         // 4. Aus der List[List[str]] das erste Element extrahieren
         //let first: &PyAny = result.as_any().get_item(0)?;
         //first.extract()
-        Ok(vals)
+        Ok(vals.first().unwrap().to_vec())
     })
 }
