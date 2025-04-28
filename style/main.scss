@@ -2,3 +2,87 @@ body {
 	font-family: sans-serif;
 	text-align: center;
 }
+
+ //style="display: block; font-size: 0.8em; color: gray;"
+
+//.tooltip {
+  //display: inline-block;
+  //text-align: center;
+  //padding-left: 5px;
+  //position: relative;
+//}
+//.tooltip .tooltiptext {
+  //position: absolute;
+  //bottom: calc(100% - 5px);
+  //left: 50%;
+  //transform: translateX(-50%);
+  //background-color: black;
+  //color: #fff;
+  //padding: 5px;
+  //border-radius: 6px;
+  //white-space: nowrap;
+  //z-index: 1;
+  //visibility: hidden;
+  //opacity: 0;
+  //transition: opacity 0.3s;
+//}
+//.tooltip:hover .tooltiptext {
+  //visibility: visible;
+  //opacity: 1;
+//}
+
+//new
+
+.tooltip {
+  display: inline-block;
+  text-align: center;
+  padding-left: 5px;
+  position: relative;
+  cursor: help;
+  line-height: 1.2;
+}
+
+.tooltip .pinyin {
+  display: block;
+  font-size: 0.8em;
+  color: gray;
+}
+
+.tooltiptext {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 0.3em;
+
+  /* make the box size to its contents */
+  display: inline-block;
+  width: max-content;      /* shrink-wrap to inner spans */
+  min-width: 6em;          /* never narrower than this */
+  max-width: 24em;         /* but never exceed this */
+
+  padding: 0.5em;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  font-size: 0.75em;
+  line-height: 1.3;
+  border-radius: 0.3em;
+  white-space: normal;     /* allow wrapping if it’s too long */
+
+  /* hide by default */
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tooltiptext .translation + .translation {
+  margin-top: 0.3em;
+  display: block;
+}

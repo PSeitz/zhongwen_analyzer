@@ -1,9 +1,10 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use tantivy::schema::*;
 use tantivy::{doc, Index};
+use tantivy_index::{open_index, search};
 
 fn main() -> tantivy::Result<()> {
     // --- 1. Build the schema -------------------------------------------------
@@ -52,18 +53,29 @@ fn main() -> tantivy::Result<()> {
     index_writer.wait_merging_threads()?; // block until merge finished
 
     // --- 5. Tiny demo query --------------------------------------------------
-    let reader = index.reader()?;
-    let searcher = reader.searcher();
+    //let reader = index.reader()?;
+    //let searcher = reader.searcher();
 
-    let query_parser =
-        tantivy::query::QueryParser::for_index(&index, vec![traditional, pinyin_pretty]);
-    let query = query_parser.parse_query("traditional:下午 AND pinyin_pretty:\"xià wǔ\"")?;
+    run_merge(index_path.to_path_buf())?;
 
-    let top_docs = searcher.search(&query, &tantivy::collector::TopDocs::with_limit(10))?;
-    for (_score, doc_address) in top_docs {
-        let retrieved: TantivyDocument = searcher.doc(doc_address)?;
-        println!("{}", retrieved.to_json(&schema));
-    }
+    let index = open_index(index_path.to_str().unwrap())?;
+    search("traditional:下午 AND pinyin_pretty:\"xià wǔ\"", &index)?;
+    Ok(())
+}
 
+const HEAP_SIZE: usize = 300_000_000;
+pub fn run_merge(path: PathBuf) -> tantivy::Result<()> {
+    let index = Index::open_in_dir(&path)?;
+    let segments = index.searchable_segment_ids()?;
+    let segment_meta = index
+        .writer::<TantivyDocument>(HEAP_SIZE)?
+        .merge(&segments)
+        .wait()?;
+    println!("Merge finished with segment meta {:?}", segment_meta);
+    println!("Garbage collect irrelevant segments.");
+    Index::open_in_dir(&path)?
+        .writer_with_num_threads::<TantivyDocument>(1, 40_000_000)?
+        .garbage_collect_files()
+        .wait()?;
     Ok(())
 }

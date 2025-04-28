@@ -110,35 +110,6 @@ fn ShowPinyinWithTranslation(current_text: RwSignal<Option<String>>) -> impl Int
 
     view! {
         <>
-            <style>
-                {r#"
-                .tooltip {
-                display: inline-block;
-                text-align: center;
-                padding-left: 5px;
-                position: relative;
-                }
-                .tooltip .tooltiptext {
-                position: absolute;
-                bottom: calc(100% - 5px);
-                left: 50%;
-                transform: translateX(-50%);
-                background-color: black;
-                color: #fff;
-                padding: 5px;
-                border-radius: 6px;
-                white-space: nowrap;
-                z-index: 1;
-                visibility: hidden;
-                opacity: 0;
-                transition: opacity 0.3s;
-                }
-                .tooltip:hover .tooltiptext {
-                visibility: visible;
-                opacity: 1;
-                }
-                "#}
-            </style>
             <Suspense fallback=|| {
                 "Loading tokens..."
             }>
@@ -148,15 +119,11 @@ fn ShowPinyinWithTranslation(current_text: RwSignal<Option<String>>) -> impl Int
                         .into_iter()
                         .map(|token| {
                             view! {
-                                <div
-                                    class="tooltip"
-                                    style="display: inline-block; text-align: center; padding-left: 5px; position: relative;"
-                                >
-                                    <span style="display: block; font-size: 0.8em; color: gray;">
-                                        {token.pinyin.clone()}
-                                    </span>
-                                    <span>{token.chinese.clone()}</span>
-                                    <span class="tooltiptext">{token.english.clone()}</span>
+                                <div class="tooltip" >
+                                    <span class="pinyin"> {token.pinyin.clone()} </span>
+                                    <span class="chinese">{token.chinese.clone()}</span>
+                                    <TooltipContent translations=token.english.clone() />
+                                    //<span class="tooltiptext">{token.english.clone()}</span>
                                 </div>
                             }
                         })
@@ -167,6 +134,23 @@ fn ShowPinyinWithTranslation(current_text: RwSignal<Option<String>>) -> impl Int
     }
 }
 
+#[component]
+pub fn TooltipContent(translations: Vec<String>) -> impl IntoView {
+    view! {
+        <div class="tooltiptext">
+            {move || {
+                translations.clone()
+                    .into_iter()
+                    .map(|transl| {
+                        view! {
+                            <span class="translation">{ transl}</span>
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            }}
+        </div>
+    }
+}
 #[server]
 async fn tokenize_texts(input_text: String) -> Result<Vec<Token>, ServerFnError> {
     println!("Received input: {}", input_text);
@@ -195,14 +179,23 @@ async fn tokenize_texts(input_text: String) -> Result<Vec<Token>, ServerFnError>
 
     //let tokenized: Vec<_> = input_text.split("").collect();
 
+    let index = tantivy_index::open_index("./tantivy_index/dict_index")?;
+
     let new_tokens: Vec<_> = tokenized
         .into_iter()
         .map(|chin| {
+            let pinyin = get_pinyin(&chin);
+            let query = format!("traditional:{chin} AND pinyin_pretty:\"{pinyin}\"");
+            //println!("Query: {}", query);
+            let res = tantivy_index::search(&query, &index).unwrap_or_default();
             Token {
                 chinese: chin.to_string(),
-                pinyin: get_pinyin(&chin),
-                english: "test".to_string(), // Placeholder for translation
-                meaning: None,               // Placeholder for meaning
+                pinyin,
+                english: res
+                    .first()
+                    .map(|entry| entry.meanings.to_vec())
+                    .unwrap_or_default(),
+                meaning: None, // Placeholder for meaning
             }
         })
         .collect();
@@ -263,7 +256,7 @@ async fn tokenize_texts(input_text: String) -> Result<Vec<Token>, ServerFnError>
 pub struct Token {
     chinese: String,
     pinyin: String,
-    english: String,
+    english: Vec<String>,
     meaning: Option<String>,
 }
 

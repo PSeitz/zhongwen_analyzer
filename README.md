@@ -1,34 +1,18 @@
-<picture>
-    <source srcset="https://raw.githubusercontent.com/leptos-rs/leptos/main/docs/logos/Leptos_logo_Solid_White.svg" media="(prefers-color-scheme: dark)">
-    <img src="https://raw.githubusercontent.com/leptos-rs/leptos/main/docs/logos/Leptos_logo_RGB.svg" alt="Leptos Logo">
-</picture>
 
-# Leptos Axum Starter Template
+# Tantivy Index
 
-This is a template for use with the [Leptos](https://github.com/leptos-rs/leptos) web framework and the [cargo-leptos](https://github.com/akesson/cargo-leptos) tool using [Axum](https://github.com/tokio-rs/axum).
+Create Index
+```
+./create_tantivy_index.sh
+```
 
-## Creating your template repo
+# Leptos Axum
 
 If you don't have `cargo-leptos` installed you can install it with
 
 ```bash
 cargo install cargo-leptos --locked
 ```
-
-Then run
-```bash
-cargo leptos new --git https://github.com/leptos-rs/start-axum
-```
-
-to generate a new project template.
-
-```bash
-cd leptos-axum-test
-```
-
-to go to your newly created project.  
-Feel free to explore the project structure, but the best place to start with your application code is in `src/app.rs`.  
-Addtionally, Cargo.toml may need updating as new versions of the dependencies are released, especially if things are not working after a `cargo update`.
 
 ## Running your project
 
