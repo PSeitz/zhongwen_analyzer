@@ -27,7 +27,8 @@ pub struct Entry {
     pub meanings: Vec<String>,
     #[serde(default)]
     pub meanings_de: Vec<String>,
-    tags: Vec<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
     #[serde(deserialize_with = "deserialize_val_from_vec")]
     pub commonness_boost: f64,
     #[serde(deserialize_with = "deserialize_val_from_vec")]

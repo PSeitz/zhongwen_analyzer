@@ -118,12 +118,14 @@ fn ShowPinyinWithTranslation(current_text: RwSignal<Option<String>>) -> impl Int
                     tokens
                         .into_iter()
                         .map(|token| {
+                            let show = token.english.clone().is_empty();
                             view! {
-                                <div class="tooltip" >
-                                    <span class="pinyin"> {token.pinyin.clone()} </span>
+                                <div class="tooltip">
+                                    <span class="pinyin">{token.pinyin.clone()}</span>
                                     <span class="chinese">{token.chinese.clone()}</span>
-                                    <TooltipContent translations=token.english.clone() />
-                                    //<span class="tooltiptext">{token.english.clone()}</span>
+                                    <Show when=move || { !show }>
+                                        <TooltipContent token=token.clone() />
+                                    </Show>
                                 </div>
                             }
                         })
@@ -135,22 +137,41 @@ fn ShowPinyinWithTranslation(current_text: RwSignal<Option<String>>) -> impl Int
 }
 
 #[component]
-pub fn TooltipContent(translations: Vec<String>) -> impl IntoView {
+pub fn TooltipContent(token: Token) -> impl IntoView {
     view! {
         <div class="tooltiptext">
+             <div>
+                {move || {
+                    token.tags
+                        .clone()
+                        .into_iter()
+                        // whitelist for tags
+                        .filter(|tag| {
+                            tag.to_lowercase().contains("tocfl")
+                                || tag.to_lowercase().contains("hsk")
+                                || tag.to_lowercase().contains("jlpt")
+                                || tag.to_lowercase().contains("wanikani")
+                        })
+                        .map(|tag| {
+                            view! { <button class="tag">{tag}</button> }
+                        })
+                        .collect::<Vec<_>>()
+                }}
+            </div>
+
             {move || {
-                translations.clone()
+                token.english
+                    .clone()
                     .into_iter()
                     .map(|transl| {
-                        view! {
-                            <span class="translation">{ transl}</span>
-                        }
+                        view! { <span class="translation">{transl}</span> }
                     })
                     .collect::<Vec<_>>()
             }}
         </div>
     }
 }
+
 #[server]
 async fn tokenize_texts(input_text: String) -> Result<Vec<Token>, ServerFnError> {
     println!("Received input: {}", input_text);
@@ -162,23 +183,6 @@ async fn tokenize_texts(input_text: String) -> Result<Vec<Token>, ServerFnError>
     let tokenized = ckip_ws::segment(&input_text).unwrap();
     println!("Tokenized: {:?}", tokenized);
 
-    //let dictionary = load_dictionary_from_kind(DictionaryKind::CcCedict).unwrap();
-    //let segmenter = Segmenter::new(
-    //Mode::Normal,
-    //dictionary,
-    //None, // Assuming no user dictionary is provided
-    //);
-
-    //let tokenizer = lindera::tokenizer::Tokenizer::new(segmenter);
-    //let tokenized = tokenizer
-    //.tokenize(&input_text)
-    //.unwrap()
-    //.iter()
-    //.map(|token| token.text.to_string())
-    //.collect::<Vec<_>>();
-
-    //let tokenized: Vec<_> = input_text.split("").collect();
-
     let index = tantivy_index::open_index("./tantivy_index/dict_index")?;
 
     let new_tokens: Vec<_> = tokenized
@@ -188,67 +192,17 @@ async fn tokenize_texts(input_text: String) -> Result<Vec<Token>, ServerFnError>
             let query = format!("traditional:{chin} AND pinyin_pretty:\"{pinyin}\"");
             //println!("Query: {}", query);
             let res = tantivy_index::search(&query, &index).unwrap_or_default();
-            Token {
+            res.first().map(Token::from_entry).unwrap_or_else(|| Token {
                 chinese: chin.to_string(),
-                pinyin,
-                english: res
-                    .first()
-                    .map(|entry| entry.meanings.to_vec())
-                    .unwrap_or_default(),
-                meaning: None, // Placeholder for meaning
-            }
+                pinyin: pinyin.clone(),
+                english: vec![],
+                tags: vec![],
+            })
         })
         .collect();
 
-    //Ok(format!("Processed input: {}", input_text))
     Ok(new_tokens)
 }
-
-//#[function_component(App)]
-//fn app() -> Html {
-//let tokens = use_state(Vec::<Token>::new);
-////let jieba = Jieba::new();
-//let dictionary = load_dictionary_from_kind(DictionaryKind::CcCedict).unwrap();
-//let segmenter = Segmenter::new(
-//Mode::Normal,
-//dictionary,
-//None, // Assuming no user dictionary is provided
-//);
-//let tokenizer = lindera::tokenizer::Tokenizer::new(segmenter);
-////let tokenizer =
-//let on_input = {
-//let tokens = tokens.clone();
-//Callback::from(move |e: InputEvent| {
-//let input_element = e.target_dyn_into::<HtmlTextAreaElement>();
-//let input_element = match input_element {
-//Some(element) => element,
-//None => return,
-//};
-
-//tokens.set(new_tokens);
-//})
-//};
-//html! {
-//<div style="display: flex; height: 100vh">
-//<LeftPane on_input={on_input} />
-//<RightPane tokens={(*tokens).clone()} />
-//</div>
-//}
-//}
-
-//#[function_component(LeftPane)]
-//fn left_pane(LeftPaneProps { on_input }: &LeftPaneProps) -> Html {
-//html! {
-//<div style="flex: 1; border-right: 1px solid #ccc; padding: 10px;">
-//<textarea style="width: 100%; height: 100%;font-size: 1.5em;" oninput={on_input.clone()}/>
-//</div>
-//}
-//}
-
-//#[derive(Properties, PartialEq)]
-//struct AnalyzedTextProps {
-//tokens: Vec<Token>,
-//}
 
 #[derive(
     PartialEq, Clone, leptos::server_fn::serde::Serialize, leptos::server_fn::serde::Deserialize,
@@ -257,7 +211,19 @@ pub struct Token {
     chinese: String,
     pinyin: String,
     english: Vec<String>,
-    meaning: Option<String>,
+    tags: Vec<String>,
+}
+
+impl Token {
+    #[cfg(feature = "ssr")]
+    pub fn from_entry(entry: &tantivy_index::Entry) -> Self {
+        Token {
+            chinese: entry.traditional.clone(),
+            pinyin: entry.pinyin_pretty.clone(),
+            english: entry.meanings.clone(),
+            tags: entry.tags.clone(),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq)]
