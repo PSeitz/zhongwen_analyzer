@@ -1,5 +1,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
-use tantivy::{Document, Index, TantivyDocument};
+use tantivy::{Document, TantivyDocument};
+
+pub use tantivy::Index;
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Entry {

@@ -14,6 +14,7 @@ fn main() -> tantivy::Result<()> {
     let traditional = schema_builder.add_text_field("traditional", TEXT | STORED);
     let pinyin = schema_builder.add_text_field("pinyin", TEXT | STORED);
     let pinyin_pretty = schema_builder.add_text_field("pinyin_pretty", TEXT | STORED);
+    let pinyin_search = schema_builder.add_text_field("pinyin_search", TEXT | STORED);
     let zhuyin = schema_builder.add_text_field("zhuyin", TEXT | STORED);
     let meanings = schema_builder.add_text_field("meanings", TEXT | STORED);
     let meanings_de = schema_builder.add_text_field("meanings_de", TEXT | STORED);
@@ -59,7 +60,7 @@ fn main() -> tantivy::Result<()> {
     run_merge(index_path.to_path_buf())?;
 
     let index = open_index(index_path.to_str().unwrap())?;
-    search("traditional:下午 AND pinyin_pretty:\"xià wǔ\"", &index)?;
+    search("traditional:下午 AND pinyin_search:\"xià wǔ\"", &index)?;
     Ok(())
 }
 

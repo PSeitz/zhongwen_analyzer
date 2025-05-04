@@ -118,13 +118,15 @@ fn ShowPinyinWithTranslation(current_text: RwSignal<Option<String>>) -> impl Int
                     tokens
                         .into_iter()
                         .map(|token| {
-                            let show = token.english.clone().is_empty();
+                            let has_english = token.tokens.is_empty();
                             view! {
-                                <div class="tooltip">
+                                <div class="token">
                                     <span class="pinyin">{token.pinyin.clone()}</span>
-                                    <span class="chinese">{token.chinese.clone()}</span>
-                                    <Show when=move || { !show }>
-                                        <TooltipContent token=token.clone() />
+                                    <span class="chinese" class:hasenglish=move || !has_english>
+                                        {token.chinese.clone()}
+                                    </span>
+                                    <Show when=move || { !has_english }>
+                                        <Tooltip tokens=token.tokens.clone() />
                                     </Show>
                                 </div>
                             }
@@ -137,43 +139,65 @@ fn ShowPinyinWithTranslation(current_text: RwSignal<Option<String>>) -> impl Int
 }
 
 #[component]
-pub fn TooltipContent(token: Token) -> impl IntoView {
+pub fn Tooltip(tokens: Vec<Token>) -> impl IntoView {
     view! {
         <div class="tooltiptext">
-             <div>
-                {move || {
-                    token.tags
-                        .clone()
-                        .into_iter()
-                        // whitelist for tags
-                        .filter(|tag| {
-                            tag.to_lowercase().contains("tocfl")
-                                || tag.to_lowercase().contains("hsk")
-                                || tag.to_lowercase().contains("jlpt")
-                                || tag.to_lowercase().contains("wanikani")
-                        })
-                        .map(|tag| {
-                            view! { <button class="tag">{tag}</button> }
-                        })
-                        .collect::<Vec<_>>()
-                }}
-            </div>
-
-            {move || {
-                token.english
-                    .clone()
-                    .into_iter()
-                    .map(|transl| {
-                        view! { <span class="translation">{transl}</span> }
-                    })
-                    .collect::<Vec<_>>()
-            }}
+            <TooltipContent tokens=tokens />
         </div>
     }
 }
 
+#[component]
+pub fn TooltipContent(tokens: Vec<Token>) -> impl IntoView {
+    tokens
+        .into_iter()
+        .map(|token| {
+            view! {
+                <div class="tooltipheader">
+                <span class="chinese">
+                    { token.chinese }
+                </span>
+                <span class="tags">
+                    {move || {
+                        token
+                            .tags
+                            .clone()
+                            .into_iter()
+                            .filter(|tag| {
+                                tag.to_lowercase().contains("tocfl")
+                                    || tag.to_lowercase().contains("hsk")
+                                    || tag.to_lowercase().contains("jlpt")
+                                    || tag.to_lowercase().contains("wanikani")
+                            })
+                            .map(|tag| {
+                                // whitelist for tags
+                                view! { <button class="tag">{tag}</button> }
+                            })
+                            .collect::<Vec<_>>()
+                    }}
+                </span>
+                </div>
+
+                {move || {
+                    let english = token
+                        .english.join("; ");
+                    view! { <span class="translation">{english}</span> }
+                    //token
+                        //.english
+                        //.clone()
+                        //.into_iter()
+                        //.map(|transl| {
+                            //view! { <span class="translation">{transl}</span> }
+                        //})
+                        //.collect::<Vec<_>>()
+                }}
+            }
+        })
+        .collect::<Vec<_>>()
+}
+
 #[server]
-async fn tokenize_texts(input_text: String) -> Result<Vec<Token>, ServerFnError> {
+async fn tokenize_texts(input_text: String) -> Result<Vec<TokenGroup>, ServerFnError> {
     println!("Received input: {}", input_text);
 
     let mut input_text = input_text.clone();
@@ -188,20 +212,46 @@ async fn tokenize_texts(input_text: String) -> Result<Vec<Token>, ServerFnError>
     let new_tokens: Vec<_> = tokenized
         .into_iter()
         .map(|chin| {
-            let pinyin = get_pinyin(&chin);
-            let query = format!("traditional:{chin} AND pinyin_pretty:\"{pinyin}\"");
-            //println!("Query: {}", query);
-            let res = tantivy_index::search(&query, &index).unwrap_or_default();
-            res.first().map(Token::from_entry).unwrap_or_else(|| Token {
-                chinese: chin.to_string(),
-                pinyin: pinyin.clone(),
-                english: vec![],
-                tags: vec![],
-            })
+            let mut tokens = chinese_to_tokens(&chin, &index);
+            // If there's more than one chinese char, call chinese_to_tokens for every char
+            for cha in chin.chars() {
+                tokens.extend(chinese_to_tokens(&cha.to_string(), &index));
+            }
+            TokenGroup {
+                chinese: chin.clone(),
+                tokens,
+                pinyin: get_pinyin(&chin),
+            }
         })
         .collect();
 
     Ok(new_tokens)
+}
+
+#[cfg(feature = "ssr")]
+fn chinese_to_tokens(chinese: &str, index: &tantivy_index::Index) -> Vec<Token> {
+    let pinyin = get_pinyin(chinese);
+    let query = format!("traditional:{chinese} AND pinyin_search:\"{pinyin}\"");
+    //println!("Query: {}", query);
+    let res = tantivy_index::search(&query, index).unwrap_or_default();
+    res.iter()
+        .map(Token::from_entry)
+        //.unwrap_or_else(|| Token {
+        //chinese: chinese.to_string(),
+        //pinyin: pinyin.clone(),
+        //english: Vec::new(),
+        //tags: Vec::new(),
+        //})
+        .collect()
+}
+
+#[derive(
+    PartialEq, Clone, leptos::server_fn::serde::Serialize, leptos::server_fn::serde::Deserialize,
+)]
+pub struct TokenGroup {
+    chinese: String,
+    pinyin: String,
+    tokens: Vec<Token>,
 }
 
 #[derive(
